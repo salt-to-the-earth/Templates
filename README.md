@@ -68,7 +68,7 @@ The nine panel positions are:
 
 Build with: gradle clean test build
 
-The JAR is written to build/libs/Templates-0.1.0.jar.
+The JAR is written to build/libs/Templates-0.2.0.jar.
 
 ## Important fidelity and safety notes
 

@@ -9,7 +9,7 @@
 - Per-player particle outlines with bounded particle output, adapted from the GateWorks selection renderer.
 - A paginated Master Template Book and a separate book for each saved template. Book links invoke server commands; the books are interfaces, not the source of truth.
 - Chat-based template naming, an explicit save confirmation, and a front/anchor strike.
-- Durable YAML template files stored under plugins/Templates/templates/.
+- Durable YAML template files stored under plugins/Templates/saves/, with each filename based on its template/book name. The saves folder is created automatically on startup, and existing files in the old templates/ folder are migrated into saves/.
 - Capture of block material, Bukkit block-data strings, supported container inventories, and sign text. Ender Chest inventories are deliberately excluded.
 - Cross-world placement using relative anchor coordinates and quarter-turn orientation transforms.
 - A particle preview and fixed nine-position ground control panel. Blue moves X, red moves Z, green moves Y, yellow rotates in 90-degree increments, and white applies/finalizes.

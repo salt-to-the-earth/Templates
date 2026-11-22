@@ -61,6 +61,8 @@ public final class TemplateWorkflowService implements Listener {
         Map<String, String> stagedData = new HashMap<>();
         long lastCenterAt;
         boolean staged;
+        int rightX, rightZ, forwardX, forwardZ;
+        boolean anchorRotation;
         PlacementSession(TemplateData template) { this.template = template; }
     }
 
@@ -133,6 +135,8 @@ public final class TemplateWorkflowService implements Listener {
                 .append(Component.text("\n\n", NamedTextColor.BLACK))
                 .append(link("Delete template", "/templates delete " + data.id()))
                 .append(Component.text("\n\n", NamedTextColor.BLACK))
+                .append(link("Cancel active placement", "/templates cancel"))
+                .append(Component.text("\n\n", NamedTextColor.BLACK))
                 .append(link("Return to Template Library", "/templates book")));
         pages.add(Component.text("PLACEMENT CONTROLS\n\n", NamedTextColor.DARK_AQUA)
                 .append(Component.text("The particle panel stays at your first ground strike while the outline moves. Click the block beneath a colored indicator with your wand.\n\n", NamedTextColor.BLACK))
@@ -181,6 +185,22 @@ public final class TemplateWorkflowService implements Listener {
                 }
             }
         });
+    }
+
+    private void giveSelectionBook(Player player) {
+        ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
+        book.editMeta(meta -> {
+            BookMeta bm = (BookMeta) meta;
+            bm.title(Component.text("Current Selection"));
+            bm.author(Component.text("Templates"));
+            bm.pages(Component.text("TEMPLATE SELECTION\\n\\nSelected blocks: " + selections.size(player) + "\\n\\n", NamedTextColor.DARK_AQUA)
+                    .append(link("Create template from selection", "/templates create"))
+                    .append(Component.text("\\n\\n", NamedTextColor.BLACK))
+                    .append(link("Clear selection", "/templates clear"))
+                    .append(Component.text("\\n\\nUse the wand to add blocks, Shift-click the opposite corner for a cuboid, or right-click to remove blocks.", NamedTextColor.GRAY)));
+            bm.getPersistentDataContainer().set(bookType, PersistentDataType.STRING, "selection");
+        });
+        giveAndOpen(player, book);
     }
 
     public void beginCreate(Player player) {
@@ -384,11 +404,18 @@ public final class TemplateWorkflowService implements Listener {
             session.panelAnchor = clicked.getLocation().clone();
             session.target = clicked.getRelative(0, 1, 0).getLocation();
             session.rotation = CoordinateTransform.rotationBetween(session.template.frontYaw(), player.getLocation().getYaw());
+            int facing = Math.floorMod(Math.round(player.getLocation().getYaw() / 90.0f), 4);
+            session.forwardX = switch (facing) { case 1 -> -1; case 3 -> 1; default -> 0; };
+            session.forwardZ = switch (facing) { case 0 -> 1; case 2 -> -1; default -> 0; };
+            session.rightX = -session.forwardZ;
+            session.rightZ = session.forwardX;
             player.sendMessage(Component.text("Preview positioned. Use the particle control panel on the ground: blue=X, red=Z, green=Y, yellow=rotate, white=center.", NamedTextColor.GREEN));
             return;
         }
-        int px = clicked.getX() - session.panelAnchor.getBlockX();
-        int pz = clicked.getZ() - session.panelAnchor.getBlockZ();
+        int dx = clicked.getX() - session.panelAnchor.getBlockX();
+        int dz = clicked.getZ() - session.panelAnchor.getBlockZ();
+        int px = dx * session.rightX + dz * session.rightZ;
+        int pz = dx * session.forwardX + dz * session.forwardZ;
         if (clicked.getY() != session.panelAnchor.getBlockY() || Math.abs(px) > 1 || Math.abs(pz) > 1) {
             player.sendMessage(Component.text("Use the ground control panel immediately around the preview anchor.", NamedTextColor.GRAY));
             return;
@@ -410,10 +437,20 @@ public final class TemplateWorkflowService implements Listener {
         else if (px == 1 && pz == 0) session.target.add(1, 0, 0);
         else if (px == 0 && pz == -1) session.target.add(0, 0, -1);
         else if (px == 0 && pz == 1) session.target.add(0, 0, 1);
-        else if (px == -1 && pz == -1) session.target.add(0, -1, 0);
-        else if (px == 1 && pz == 1) session.target.add(0, 1, 0);
-        else if (px == -1 && pz == 1) session.rotation = (session.rotation + 3) % 4;
-        else if (px == 1 && pz == -1) session.rotation = (session.rotation + 1) % 4;
+        else if (px == 0 && pz == 1) session.target.add(0, 1, 0);
+        else if (px == 0 && pz == -1) session.target.add(0, -1, 0);
+        else if (px == -1 && pz == 1) session.target.add(-session.rightX, 0, -session.rightZ);
+        else if (px == 1 && pz == -1) session.target.add(session.rightX, 0, session.rightZ);
+        else if (px == 1 && pz == 1) session.target.add(-session.forwardX, 0, -session.forwardZ);
+        else if (px == -1 && pz == -1) session.target.add(session.forwardX, 0, session.forwardZ);
+        else if (Math.abs(px) == 1 && pz == 0) {
+            session.anchorRotation = player.isSneaking();
+            session.rotation = (session.rotation + (px > 0 ? 1 : 3)) % 4;
+            if (wouldOverlapPanel(session)) {
+                session.target.add(session.forwardX * 2, 0, session.forwardZ * 2);
+                player.sendMessage(Component.text("Moved the rotated template two blocks forward to keep the control panel clear.", NamedTextColor.YELLOW));
+            }
+        }
         session.lastCenterAt = 0L;
         renderOne(player, session);
     }
@@ -432,7 +469,7 @@ public final class TemplateWorkflowService implements Listener {
         Map<String, String> staged = new HashMap<>();
         try {
             for (TemplateBlock b : session.template.blocks()) {
-                int[] rotated = rotate(b.x(), b.z(), session.rotation);
+                int[] rotated = transformBlock(session, b);
                 int x = session.target.getBlockX() + rotated[0];
                 int y = session.target.getBlockY() + b.y();
                 int z = session.target.getBlockZ() + rotated[1];
@@ -611,7 +648,7 @@ public final class TemplateWorkflowService implements Listener {
         Set<PreviewEdge> drawn = new HashSet<>();
         for (TemplateBlock b : session.template.blocks()) {
             if (emitted[0] >= MAX_PREVIEW_PARTICLES) break;
-            int[] r = rotate(b.x(), b.z(), session.rotation);
+            int[] r = transformBlock(session, b);
             int x = session.target.getBlockX() + r[0];
             int y = session.target.getBlockY() + b.y();
             int z = session.target.getBlockZ() + r[1];
@@ -649,17 +686,55 @@ public final class TemplateWorkflowService implements Listener {
         }
     }
 
+    private void panelDust(Player player, PlacementSession session, int right, int forward, Color color) {
+        int x = session.panelAnchor.getBlockX() + right * session.rightX + forward * session.forwardX;
+        int z = session.panelAnchor.getBlockZ() + right * session.rightZ + forward * session.forwardZ;
+        dust(player, session.panelAnchor.getWorld(), x, session.panelAnchor.getBlockY(), z, color);
+    }
+
+    private int[] transformBlock(PlacementSession session, TemplateBlock block) {
+        if (session.anchorRotation) return rotate(block.x(), block.z(), session.rotation);
+        int minX = session.template.blocks().stream().mapToInt(TemplateBlock::x).min().orElse(0);
+        int maxX = session.template.blocks().stream().mapToInt(TemplateBlock::x).max().orElse(0);
+        int minZ = session.template.blocks().stream().mapToInt(TemplateBlock::z).min().orElse(0);
+        int maxZ = session.template.blocks().stream().mapToInt(TemplateBlock::z).max().orElse(0);
+        int x = block.x(), z = block.z();
+        int centerX2 = minX + maxX + 1;
+        int centerZ2 = minZ + maxZ + 1;
+        for (int i = 0; i < session.rotation; i++) {
+            int x2 = 2 * x + 1, z2 = 2 * z + 1;
+            int nextX2 = centerX2 - (z2 - centerZ2);
+            int nextZ2 = centerZ2 + (x2 - centerX2);
+            x = (nextX2 - 1) / 2;
+            z = (nextZ2 - 1) / 2;
+        }
+        return new int[]{x, z};
+    }
+
+    private boolean wouldOverlapPanel(PlacementSession session) {
+        for (TemplateBlock block : session.template.blocks()) {
+            int[] r = transformBlock(session, block);
+            int worldX = session.target.getBlockX() + r[0];
+            int worldY = session.target.getBlockY() + block.y();
+            int worldZ = session.target.getBlockZ() + r[1];
+            if (worldX == session.panelAnchor.getBlockX()
+                    && worldY == session.panelAnchor.getBlockY()
+                    && worldZ == session.panelAnchor.getBlockZ()) return true;
+        }
+        return false;
+    }
+
     private void panel(Player player, PlacementSession session) {
         World world = session.panelAnchor.getWorld();
         int x = session.panelAnchor.getBlockX(), y = session.panelAnchor.getBlockY(), z = session.panelAnchor.getBlockZ();
-        dust(player, world, x - 1, y, z, Color.BLUE);
-        dust(player, world, x + 1, y, z, Color.BLUE);
-        dust(player, world, x, y, z - 1, Color.RED);
-        dust(player, world, x, y, z + 1, Color.RED);
-        dust(player, world, x - 1, y, z - 1, Color.LIME);
-        dust(player, world, x + 1, y, z + 1, Color.LIME);
-        dust(player, world, x - 1, y, z + 1, Color.YELLOW);
-        dust(player, world, x + 1, y, z - 1, Color.YELLOW);
+        panelDust(player, session, 0, 1, Color.LIME);
+        panelDust(player, session, 0, -1, Color.LIME);
+        panelDust(player, session, 1, 0, Color.YELLOW);
+        panelDust(player, session, -1, 0, Color.YELLOW);
+        panelDust(player, session, -1, 1, Color.BLUE);
+        panelDust(player, session, 1, -1, Color.BLUE);
+        panelDust(player, session, 1, 1, Color.RED);
+        panelDust(player, session, -1, -1, Color.RED);
         dust(player, world, x, y, z, Color.WHITE);
     }
 

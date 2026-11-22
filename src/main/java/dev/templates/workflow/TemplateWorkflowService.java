@@ -647,7 +647,7 @@ public final class TemplateWorkflowService implements Listener {
             catch (IllegalArgumentException ex) { continue; }
             if (world == null) continue;
             for (Map<?, ?> row : yaml.getMapList(id + ".originals")) {
-                List<?> rawSign = (List<?>) row.getOrDefault("sign", List.of());
+                List<?> rawSign = (List<?>) (row.containsKey("sign") ? row.get("sign") : List.of());
                 String[] sign = rawSign.isEmpty() ? null : rawSign.stream().map(String::valueOf).toArray(String[]::new);
                 OriginalBlock original = new OriginalBlock(num(row.get("x")), num(row.get("y")), num(row.get("z")),
                         String.valueOf(row.get("material")), String.valueOf(row.get("data")),

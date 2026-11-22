@@ -206,7 +206,6 @@ public final class TemplateWorkflowService implements Listener {
             if (!"selection".equals(existing.getItemMeta().getPersistentDataContainer()
                     .get(bookType, PersistentDataType.STRING))) continue;
             player.getInventory().setItem(slot, book);
-            player.openBook(book);
             return;
         }
         giveAndOpen(player, book);

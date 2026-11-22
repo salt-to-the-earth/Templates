@@ -444,7 +444,7 @@ public final class TemplateWorkflowService implements Listener {
                 Block block = world.getBlockAt(session.target.getBlockX() + rotated[0],
                         session.target.getBlockY() + b.y(), session.target.getBlockZ() + rotated[1]);
                 placeBlock(block, b, session.rotation);
-                session.stagedData.put(key(block), block.getBlockData().getAsString());
+                session.stagedData.put(key(block), signature(block));
             }
             session.staged = true;
             persistTransactions();
@@ -501,7 +501,7 @@ public final class TemplateWorkflowService implements Listener {
             String expected = session.stagedData.get(original.x() + ":" + original.y() + ":" + original.z());
             if (expected == null) return false;
             Block block = world.getBlockAt(original.x(), original.y(), original.z());
-            if (!block.getBlockData().getAsString().equals(expected)) return false;
+            if (!signature(block).equals(expected)) return false;
         }
         return true;
     }
@@ -511,7 +511,7 @@ public final class TemplateWorkflowService implements Listener {
             String key = original.x() + ":" + original.y() + ":" + original.z();
             String expected = session.stagedData.get(key);
             Block block = world.getBlockAt(original.x(), original.y(), original.z());
-            if (expected != null && !block.getBlockData().getAsString().equals(expected)) {
+            if (expected != null && !signature(block).equals(expected)) {
                 plugin.getLogger().warning("Skipped rollback at " + key + " because another change was detected.");
                 continue;
             }
@@ -543,6 +543,12 @@ public final class TemplateWorkflowService implements Listener {
         } catch (Exception ex) {
             plugin.getLogger().warning("Could not fully restore block data at " + original.x() + "," + original.y() + "," + original.z() + ": " + ex.getMessage());
         }
+    }
+
+    private String signature(Block block) {
+        OriginalBlock snapshot = captureOriginal(block);
+        return snapshot.material() + "|" + snapshot.data() + "|" + snapshot.inventory()
+                + "|" + Arrays.toString(snapshot.signLines());
     }
 
     private String key(Block block) { return block.getX() + ":" + block.getY() + ":" + block.getZ(); }
@@ -706,7 +712,7 @@ public final class TemplateWorkflowService implements Listener {
                         String.valueOf(row.containsKey("inventory") ? row.get("inventory") : ""), sign);
                 String expected = String.valueOf(row.containsKey("expected") ? row.get("expected") : "");
                 Block current = world.getBlockAt(original.x(), original.y(), original.z());
-                if (expected.isBlank() || current.getBlockData().getAsString().equals(expected)) {
+                if (expected.isBlank() || signature(current).equals(expected)) {
                     restoreOriginal(world, original);
                 } else {
                     plugin.getLogger().warning("Crash recovery skipped " + original.x() + "," + original.y() + "," + original.z()

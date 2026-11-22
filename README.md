@@ -56,7 +56,7 @@
 The nine panel positions are:
 - Left/right blue: X − / X +
 - Back/front red: Z − / Z +
-- Lower-left/upper-right green: Y − / Y +
+- Northwest/southeast green: Y − / Y +
 - Remaining yellow corners: rotate left/right
 - White center: apply; a deliberate second activation finalizes
 

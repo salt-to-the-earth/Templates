@@ -16,7 +16,7 @@ public final class TemplatesPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
         saveDefaultConfig();
-        SelectionService selections = new SelectionService();
+        SelectionService selections = new SelectionService(getConfig().getInt("maximum-cuboid-blocks", 16384));
         WandService wands = new WandService(this);
         TemplateRepository repository = new TemplateRepository(this);
         workflow = new TemplateWorkflowService(this, selections, wands, repository);

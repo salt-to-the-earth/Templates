@@ -351,6 +351,7 @@ public final class TemplateWorkflowService implements Listener {
         if (action == Action.RIGHT_CLICK_BLOCK) {
             selections.remove(player, clicked);
             player.sendMessage(Component.text("Removed block. Selection: " + selections.size(player), NamedTextColor.YELLOW));
+            giveSelectionBook(player);
             return;
         }
         if (player.isSneaking()) {

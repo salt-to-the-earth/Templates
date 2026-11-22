@@ -585,15 +585,46 @@ public final class TemplateWorkflowService implements Listener {
     private void renderOne(Player player, PlacementSession session) {
         if (session.target == null || session.target.getWorld() == null || session.panelAnchor == null) return;
         World world = session.target.getWorld();
-        int emitted = 0;
+        int[] emitted = {0};
+        Set<PreviewEdge> drawn = new HashSet<>();
         for (TemplateBlock b : session.template.blocks()) {
-            if (emitted >= MAX_PREVIEW_PARTICLES) break;
+            if (emitted[0] >= MAX_PREVIEW_PARTICLES) break;
             int[] r = rotate(b.x(), b.z(), session.rotation);
-            Location point = session.target.clone().add(r[0] + .5, b.y() + .5, r[1] + .5);
-            player.spawnParticle(Particle.END_ROD, point, 1, 0, 0, 0, 0);
-            emitted++;
+            int x = session.target.getBlockX() + r[0];
+            int y = session.target.getBlockY() + b.y();
+            int z = session.target.getBlockZ() + r[1];
+            previewEdge(player, world, x,y,z,x+1,y,z,emitted,drawn);
+            previewEdge(player, world, x,y,z+1,x+1,y,z+1,emitted,drawn);
+            previewEdge(player, world, x,y+1,z,x+1,y+1,z,emitted,drawn);
+            previewEdge(player, world, x,y+1,z+1,x+1,y+1,z+1,emitted,drawn);
+            previewEdge(player, world, x,y,z,x,y+1,z,emitted,drawn);
+            previewEdge(player, world, x+1,y,z,x+1,y+1,z,emitted,drawn);
+            previewEdge(player, world, x,y,z+1,x,y+1,z+1,emitted,drawn);
+            previewEdge(player, world, x+1,y,z+1,x+1,y+1,z+1,emitted,drawn);
+            previewEdge(player, world, x,y,z,x,y,z+1,emitted,drawn);
+            previewEdge(player, world, x+1,y,z,x+1,y,z+1,emitted,drawn);
+            previewEdge(player, world, x,y+1,z,x,y+1,z+1,emitted,drawn);
+            previewEdge(player, world, x+1,y+1,z,x+1,y+1,z+1,emitted,drawn);
         }
         panel(player, session);
+    }
+
+    private record PreviewEdge(int x0, int y0, int z0, int x1, int y1, int z1) {}
+
+    private void previewEdge(Player player, World world, int x0, int y0, int z0,
+                             int x1, int y1, int z1, int[] emitted, Set<PreviewEdge> drawn) {
+        PreviewEdge forward = new PreviewEdge(x0,y0,z0,x1,y1,z1);
+        PreviewEdge reverse = new PreviewEdge(x1,y1,z1,x0,y0,z0);
+        if (drawn.contains(forward) || drawn.contains(reverse)) return;
+        drawn.add(forward);
+        double dx=x1-x0, dy=y1-y0, dz=z1-z0;
+        int steps=2;
+        for (int i=0;i<=steps && emitted[0]<MAX_PREVIEW_PARTICLES;i++) {
+            double t=(double)i/steps;
+            player.spawnParticle(Particle.END_ROD,
+                    new Location(world,x0+dx*t,y0+dy*t,z0+dz*t),1,0,0,0,0);
+            emitted[0]++;
+        }
     }
 
     private void panel(Player player, PlacementSession session) {

@@ -455,7 +455,7 @@ public final class TemplateWorkflowService implements Listener {
         String[] lines = null;
         var state = block.getState();
         if (state instanceof Container container && block.getType() != Material.ENDER_CHEST) {
-            inventory = TemplateRepository.encodeItems(container.getInventory().getContents());
+            inventory = TemplateRepository.encodeItems(container.getSnapshotInventory().getContents());
         }
         if (state instanceof Sign sign) {
             lines = new String[4];
@@ -475,7 +475,7 @@ public final class TemplateWorkflowService implements Listener {
         var state = block.getState();
         if (!data.inventoryData().isBlank() && state instanceof Container container
                 && material != Material.ENDER_CHEST) {
-            container.getInventory().setContents(TemplateRepository.decodeItems(data.inventoryData()));
+            container.getSnapshotInventory().setContents(TemplateRepository.decodeItems(data.inventoryData()));
             container.update(true, false);
         }
         if (data.signLines() != null && state instanceof Sign sign) {

@@ -1,0 +1,19 @@
+name: Templates
+version: '${version}'
+main: dev.templates.TemplatesPlugin
+description: Save, organize, preview, and place reusable Minecraft structures.
+api-version: '26.3'
+authors: [Templates Contributors]
+website: https://github.com/salt-to-the-earth/Templates
+
+commands:
+  templates:
+    description: Manage structure templates and the selection wand.
+    usage: /templates <wand|book|list|help>
+    aliases: [template, tpl]
+    permission: templates.admin
+
+permissions:
+  templates.admin:
+    description: Allows use of template creation and placement tools.
+    default: op

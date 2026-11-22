@@ -54,6 +54,7 @@ public final class TemplateWorkflowService implements Listener {
     private static final class PlacementSession {
         TemplateData template;
         Location target;
+        Location panelAnchor;
         int rotation;
         List<OriginalBlock> originals = new ArrayList<>();
         Map<String, String> stagedData = new HashMap<>();
@@ -368,15 +369,16 @@ public final class TemplateWorkflowService implements Listener {
 
     private void handlePlacementClick(Player player, PlacementSession session, Block clicked) {
         if (session.target == null) {
+            session.panelAnchor = clicked.getLocation().clone();
             session.target = clicked.getRelative(0, 1, 0).getLocation();
             session.rotation = Math.floorMod(yawQuarter(player.getLocation().getYaw())
                     - yawQuarter(session.template.frontYaw()), 4);
             player.sendMessage(Component.text("Preview positioned. Use the particle control panel on the ground: blue=X, red=Z, green=Y, yellow=rotate, white=center.", NamedTextColor.GREEN));
             return;
         }
-        int px = clicked.getX() - session.target.getBlockX();
-        int pz = clicked.getZ() - session.target.getBlockZ();
-        if (clicked.getY() != session.target.getBlockY() - 1 || Math.abs(px) > 1 || Math.abs(pz) > 1) {
+        int px = clicked.getX() - session.panelAnchor.getBlockX();
+        int pz = clicked.getZ() - session.panelAnchor.getBlockZ();
+        if (clicked.getY() != session.panelAnchor.getBlockY() || Math.abs(px) > 1 || Math.abs(pz) > 1) {
             player.sendMessage(Component.text("Use the ground control panel immediately around the preview anchor.", NamedTextColor.GRAY));
             return;
         }
@@ -574,7 +576,7 @@ public final class TemplateWorkflowService implements Listener {
     }
 
     private void renderOne(Player player, PlacementSession session) {
-        if (session.target == null || session.target.getWorld() == null) return;
+        if (session.target == null || session.target.getWorld() == null || session.panelAnchor == null) return;
         World world = session.target.getWorld();
         int emitted = 0;
         for (TemplateBlock b : session.template.blocks()) {
@@ -588,8 +590,8 @@ public final class TemplateWorkflowService implements Listener {
     }
 
     private void panel(Player player, PlacementSession session) {
-        World world = session.target.getWorld();
-        int x = session.target.getBlockX(), y = session.target.getBlockY() - 1, z = session.target.getBlockZ();
+        World world = session.panelAnchor.getWorld();
+        int x = session.panelAnchor.getBlockX(), y = session.panelAnchor.getBlockY(), z = session.panelAnchor.getBlockZ();
         dust(player, world, x - 1, y, z, Color.BLUE);
         dust(player, world, x + 1, y, z, Color.BLUE);
         dust(player, world, x, y, z - 1, Color.RED);

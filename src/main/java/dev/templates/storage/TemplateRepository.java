@@ -98,7 +98,7 @@ public final class TemplateRepository {
             String[] lines = null;
             var state = block.getState();
             if (state instanceof Container container && block.getType() != Material.ENDER_CHEST) {
-                inventory = encodeItems(container.getInventory().getContents());
+                inventory = encodeItems(container.getSnapshotInventory().getContents());
             }
             if (state instanceof Sign sign) {
                 lines = new String[4];

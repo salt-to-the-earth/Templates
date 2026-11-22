@@ -34,6 +34,7 @@ public final class TemplateRepository {
         this.legacyFolder = new File(dataFolder, "templates");
         ensureFolder();
         migrateLegacyFolder();
+        normalizeSaveFilenames();
     }
 
     private void ensureFolder() {
@@ -63,6 +64,35 @@ public final class TemplateRepository {
         File[] remaining = legacyFolder.listFiles();
         if (remaining != null && remaining.length == 0 && !legacyFolder.delete()) {
             plugin.getLogger().warning("Could not remove empty legacy templates folder.");
+        }
+    }
+
+    private void normalizeSaveFilenames() {
+        File[] files = folder.listFiles((dir, name) -> name.toLowerCase(Locale.ROOT).endsWith(".yml"));
+        if (files == null) return;
+        for (File current : files) {
+            try {
+                YamlConfiguration yaml = YamlConfiguration.loadConfiguration(current);
+                String name = yaml.getString("name");
+                if (name == null || name.isBlank()) continue;
+                File named = new File(folder, safeFileName(name) + ".yml");
+                if (current.equals(named)) continue;
+                if (named.exists()) {
+                    String currentId = yaml.getString("id");
+                    String namedId = YamlConfiguration.loadConfiguration(named).getString("id");
+                    if (Objects.equals(currentId, namedId)) {
+                        if (!current.delete()) plugin.getLogger().warning("Could not remove duplicate old save filename: " + current.getName());
+                    } else {
+                        plugin.getLogger().warning("Could not rename " + current.getName() + " to " + named.getName()
+                                + " because a different template already uses that filename.");
+                    }
+                    continue;
+                }
+                Files.move(current.toPath(), named.toPath());
+                plugin.getLogger().info("Renamed template save to match its book name: " + named.getName());
+            } catch (Exception ex) {
+                plugin.getLogger().warning("Could not normalize template filename " + current.getName() + ": " + ex.getMessage());
+            }
         }
     }
 

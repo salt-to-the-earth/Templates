@@ -134,6 +134,10 @@ public final class TemplateWorkflowService implements Listener {
                 .append(link("Delete template", "/templates delete " + data.id()))
                 .append(Component.text("\n\n", NamedTextColor.BLACK))
                 .append(link("Return to Template Library", "/templates book")));
+        pages.add(Component.text("PLACEMENT CONTROLS\n\n", NamedTextColor.DARK_AQUA)
+                .append(Component.text("The particle panel stays at your first ground strike while the outline moves. Click the block beneath a colored indicator with your wand.\n\n", NamedTextColor.BLACK))
+                .append(Component.text("Blue west/east: X − / X +\nRed north/south: Z − / Z +\nGreen NW/SE: Y − / Y +\nYellow SW/NE: rotate left / right\nWhite center: apply; immediate second tap finalizes.\n\n", NamedTextColor.BLACK))
+                .append(Component.text("You can also use /templates finalize or /templates cancel.", NamedTextColor.GRAY)));
         int pageSize = 18;
         for (int start = 0; start < data.blocks().size(); start += pageSize) {
             Component detail = Component.text("TEMPLATE CONTENTS\n\n", NamedTextColor.DARK_AQUA);

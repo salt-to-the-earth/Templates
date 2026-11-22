@@ -200,6 +200,15 @@ public final class TemplateWorkflowService implements Listener {
                     .append(Component.text("\\n\\nUse the wand to add blocks, Shift-click the opposite corner for a cuboid, or right-click to remove blocks.", NamedTextColor.GRAY)));
             bm.getPersistentDataContainer().set(bookType, PersistentDataType.STRING, "selection");
         });
+        for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+            ItemStack existing = player.getInventory().getItem(slot);
+            if (existing == null || existing.getType() != Material.WRITTEN_BOOK) continue;
+            if (!"selection".equals(existing.getItemMeta().getPersistentDataContainer()
+                    .get(bookType, PersistentDataType.STRING))) continue;
+            player.getInventory().setItem(slot, book);
+            player.openBook(book);
+            return;
+        }
         giveAndOpen(player, book);
     }
 

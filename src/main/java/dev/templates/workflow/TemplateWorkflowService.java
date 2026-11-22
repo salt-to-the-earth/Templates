@@ -184,6 +184,10 @@ public final class TemplateWorkflowService implements Listener {
             player.sendMessage(Component.text("Select at least one block before creating a template.", NamedTextColor.RED));
             return;
         }
+        if (selections.size(player) > MAX_TEMPLATE_BLOCKS) {
+            player.sendMessage(Component.text("This selection exceeds the " + MAX_TEMPLATE_BLOCKS + "-block template limit.", NamedTextColor.RED));
+            return;
+        }
         naming.put(player.getUniqueId(), "create");
         player.closeInventory();
         player.sendMessage(Component.text("[Templates] Enter a name for this template in chat, or type CANCEL.", NamedTextColor.GOLD));
@@ -565,7 +569,11 @@ public final class TemplateWorkflowService implements Listener {
 
     private void restoreAndClose(UUID id, Player player, String message) {
         PlacementSession session = placements.remove(id);
-        if (session != null && session.staged && session.target != null && session.target.getWorld() != null) {
+        if (session != null && session.staged) {
+            if (session.target == null || session.target.getWorld() == null) {
+                if (player != null) player.sendMessage(Component.text("The placement world is unavailable. Its rollback record was preserved for recovery when that world loads.", NamedTextColor.RED));
+                return;
+            }
             restoreOriginals(session, session.target.getWorld());
         }
         forgetTransaction(id);
@@ -576,7 +584,7 @@ public final class TemplateWorkflowService implements Listener {
     public void onQuit(PlayerQuitEvent event) {
         UUID id = event.getPlayer().getUniqueId();
         if (placements.containsKey(id)) restoreAndClose(id, event.getPlayer(), "Disconnected; temporary placement rolled back.");
-        naming.remove(id); pendingNames.remove(id); awaitingAnchor.remove(id);
+        naming.remove(id); pendingNames.remove(id); awaitingAnchor.remove(id); selections.clear(event.getPlayer());
     }
 
     private void renderPreviews() {

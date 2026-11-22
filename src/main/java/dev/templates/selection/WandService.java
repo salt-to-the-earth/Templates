@@ -21,8 +21,11 @@ public final class WandService {
         ItemStack item = new ItemStack(Material.BLAZE_ROD);
         ItemMeta meta = item.getItemMeta();
         meta.setDisplayName("§6Template Selection Wand");
-        meta.setLore(List.of("§7Left-click: select block", "§7Shift + left-click: cuboid",
-                "§7Right-click: remove block", "§7Use /templates help for instructions"));
+        meta.setLore(List.of("§7Left-click: select block / strike anchor",
+                "§7Shift + left-click: select cuboid",
+                "§7Right-click: remove selected block",
+                "§7Placement: strike ground, then click the particle panel",
+                "§7Use /templates book for the library"));
         meta.getPersistentDataContainer().set(wandKey, PersistentDataType.BYTE, (byte) 1);
         item.setItemMeta(meta);
         return item;

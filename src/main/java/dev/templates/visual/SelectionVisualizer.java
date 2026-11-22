@@ -40,25 +40,30 @@ public final class SelectionVisualizer {
     private void render() {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             if (!player.hasPermission("templates.admin")) continue;
-            Set<Edge> drawn = new HashSet<>();
+            var blocks = selections.blocks(player).stream()
+                    .filter(block -> block.getWorld().equals(player.getWorld())).toList();
+            if (blocks.isEmpty()) continue;
+            int minX = blocks.stream().mapToInt(Block::getX).min().orElse(0);
+            int maxX = blocks.stream().mapToInt(Block::getX).max().orElse(0) + 1;
+            int minY = blocks.stream().mapToInt(Block::getY).min().orElse(0);
+            int maxY = blocks.stream().mapToInt(Block::getY).max().orElse(0) + 1;
+            int minZ = blocks.stream().mapToInt(Block::getZ).min().orElse(0);
+            int maxZ = blocks.stream().mapToInt(Block::getZ).max().orElse(0) + 1;
+            World world = player.getWorld();
             int[] count = {0};
-            for (Block block : selections.blocks(player)) {
-                if (count[0] >= MAX_PARTICLES) break;
-                if (!block.getWorld().equals(player.getWorld())) continue;
-                int x = block.getX(), y = block.getY(), z = block.getZ();
-                edge(player, block.getWorld(), x,y,z,x+1,y,z,count,drawn);
-                edge(player, block.getWorld(), x,y,z+1,x+1,y,z+1,count,drawn);
-                edge(player, block.getWorld(), x,y+1,z,x+1,y+1,z,count,drawn);
-                edge(player, block.getWorld(), x,y+1,z+1,x+1,y+1,z+1,count,drawn);
-                edge(player, block.getWorld(), x,y,z,x,y+1,z,count,drawn);
-                edge(player, block.getWorld(), x+1,y,z,x+1,y+1,z,count,drawn);
-                edge(player, block.getWorld(), x,y,z+1,x,y+1,z+1,count,drawn);
-                edge(player, block.getWorld(), x+1,y,z+1,x+1,y+1,z+1,count,drawn);
-                edge(player, block.getWorld(), x,y,z,x,y,z+1,count,drawn);
-                edge(player, block.getWorld(), x+1,y,z,x+1,y,z+1,count,drawn);
-                edge(player, block.getWorld(), x,y+1,z,x,y+1,z+1,count,drawn);
-                edge(player, block.getWorld(), x+1,y+1,z,x+1,y+1,z+1,count,drawn);
-            }
+            Set<Edge> drawn = new HashSet<>();
+            edge(player, world, minX,minY,minZ,maxX,minY,minZ,count,drawn);
+            edge(player, world, minX,maxY,minZ,maxX,maxY,minZ,count,drawn);
+            edge(player, world, minX,minY,maxZ,maxX,minY,maxZ,count,drawn);
+            edge(player, world, minX,maxY,maxZ,maxX,maxY,maxZ,count,drawn);
+            edge(player, world, minX,minY,minZ,minX,maxY,minZ,count,drawn);
+            edge(player, world, maxX,minY,minZ,maxX,maxY,minZ,count,drawn);
+            edge(player, world, minX,minY,maxZ,minX,maxY,maxZ,count,drawn);
+            edge(player, world, maxX,minY,maxZ,maxX,maxY,maxZ,count,drawn);
+            edge(player, world, minX,minY,minZ,minX,minY,maxZ,count,drawn);
+            edge(player, world, maxX,minY,minZ,maxX,minY,maxZ,count,drawn);
+            edge(player, world, minX,maxY,minZ,minX,maxY,maxZ,count,drawn);
+            edge(player, world, maxX,maxY,minZ,maxX,maxY,maxZ,count,drawn);
         }
     }
 

@@ -50,6 +50,14 @@ public final class SelectionService {
     public void remove(Player player, Block block) {
         Map<String, Block> selected = selections.get(player.getUniqueId());
         if (selected != null) selected.remove(key(block));
+        Location last = lastPoints.get(player.getUniqueId());
+        if (last != null && last.getWorld() != null
+                && last.getWorld().equals(block.getWorld())
+                && last.getBlockX() == block.getX()
+                && last.getBlockY() == block.getY()
+                && last.getBlockZ() == block.getZ()) {
+            lastPoints.remove(player.getUniqueId());
+        }
     }
 
     public void clear(Player player) {

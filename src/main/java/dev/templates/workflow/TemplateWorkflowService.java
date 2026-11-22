@@ -42,7 +42,7 @@ public final class TemplateWorkflowService implements Listener {
     private final TemplateRepository repository;
     private final NamespacedKey bookType;
     private final NamespacedKey bookId;
-    private final Map<UUID, String> naming = new HashMap<>();
+    private final Map<UUID, String> naming = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<UUID, String> pendingNames = new HashMap<>();
     private final Set<UUID> awaitingAnchor = new HashSet<>();
     private final Map<UUID, PlacementSession> placements = new HashMap<>();
@@ -409,7 +409,13 @@ public final class TemplateWorkflowService implements Listener {
     private void applyStage(Player player, PlacementSession session) {
         World world = session.target.getWorld();
         if (world == null) return;
-        if (session.staged) restoreOriginals(session, world);
+        if (session.staged) {
+            if (!canRestore(session, world)) {
+                player.sendMessage(Component.text("A staged block was changed by another source. The new position was not applied; use /templates cancel to restore only unchanged blocks or /templates finalize to keep the current placement.", NamedTextColor.RED));
+                return;
+            }
+            restoreOriginals(session, world);
+        }
         List<OriginalBlock> originals = new ArrayList<>();
         Map<String, String> staged = new HashMap<>();
         try {
@@ -489,6 +495,16 @@ public final class TemplateWorkflowService implements Listener {
             case 3 -> new int[]{z, -x};
             default -> new int[]{x, z};
         };
+    }
+
+    private boolean canRestore(PlacementSession session, World world) {
+        for (OriginalBlock original : session.originals) {
+            String expected = session.stagedData.get(original.x() + ":" + original.y() + ":" + original.z());
+            if (expected == null) return false;
+            Block block = world.getBlockAt(original.x(), original.y(), original.z());
+            if (!block.getBlockData().getAsString().equals(expected)) return false;
+        }
+        return true;
     }
 
     private void restoreOriginals(PlacementSession session, World world) {

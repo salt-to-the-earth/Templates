@@ -132,7 +132,12 @@ public final class TemplateRepository {
         File oldFile = fileForId(data.id());
         File target = new File(folder, safeFileName(data.name()) + ".yml");
         if (target.exists() && (oldFile == null || !target.equals(oldFile))) {
-            TemplateData occupying = read(target);
+            TemplateData occupying;
+            try {
+                occupying = read(target);
+            } catch (Exception ex) {
+                throw new IOException("Could not inspect the existing save file " + target.getName(), ex);
+            }
             if (occupying == null || !occupying.id().equals(data.id())) {
                 throw new IOException("A save file with that name already exists. Choose a different template name.");
             }

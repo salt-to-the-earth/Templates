@@ -453,7 +453,7 @@ public final class TemplateWorkflowService implements Listener {
         else if (Math.abs(px) == 1 && pz == 0) {
             session.anchorRotation = player.isSneaking();
             session.rotation = (session.rotation + (px > 0 ? 1 : 3)) % 4;
-            if (wouldOverlapPanel(session)) {
+            if (!session.anchorRotation && wouldOverlapPanel(session)) {
                 session.target.add(session.forwardX * 2, 0, session.forwardZ * 2);
                 player.sendMessage(Component.text("Moved the rotated template two blocks forward to keep the control panel clear.", NamedTextColor.YELLOW));
             }

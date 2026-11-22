@@ -4,4 +4,3 @@ selection-particle-refresh-ticks: 10
 # Maximum number of blocks allowed in one cuboid selection gesture.
 maximum-cuboid-blocks: 16384
 
-# Template and placement settings will be added as their services are implemented.

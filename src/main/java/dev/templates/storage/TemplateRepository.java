@@ -15,20 +15,60 @@ import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 import java.util.*;
 
 public final class TemplateRepository {
     private final JavaPlugin plugin;
     private final File folder;
+    private final File legacyFolder;
 
     public TemplateRepository(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.folder = new File(plugin.getDataFolder(), "templates");
-        if (!folder.exists()) folder.mkdirs();
+        File dataFolder = plugin.getDataFolder();
+        if (!dataFolder.exists() && !dataFolder.mkdirs()) {
+            throw new IllegalStateException("Could not create plugin data folder: " + dataFolder);
+        }
+        this.folder = new File(dataFolder, "saves");
+        this.legacyFolder = new File(dataFolder, "templates");
+        ensureFolder();
+        migrateLegacyFolder();
+    }
+
+    private void ensureFolder() {
+        if (!folder.isDirectory() && !folder.mkdirs()) {
+            throw new IllegalStateException("Could not create template saves folder: " + folder);
+        }
+    }
+
+    private void migrateLegacyFolder() {
+        if (!legacyFolder.isDirectory()) return;
+        File[] oldFiles = legacyFolder.listFiles();
+        if (oldFiles == null) return;
+        for (File oldFile : oldFiles) {
+            if (!oldFile.isFile() || !oldFile.getName().toLowerCase(Locale.ROOT).endsWith(".yml")) continue;
+            File destination = new File(folder, oldFile.getName());
+            if (destination.exists()) {
+                plugin.getLogger().warning("Keeping legacy template file because a saves file already exists: " + oldFile.getName());
+                continue;
+            }
+            try {
+                Files.move(oldFile.toPath(), destination.toPath(), StandardCopyOption.REPLACE_EXISTING);
+                plugin.getLogger().info("Migrated template save: " + oldFile.getName());
+            } catch (IOException ex) {
+                plugin.getLogger().warning("Could not migrate " + oldFile.getName() + " into saves/: " + ex.getMessage());
+            }
+        }
+        File[] remaining = legacyFolder.listFiles();
+        if (remaining != null && remaining.length == 0 && !legacyFolder.delete()) {
+            plugin.getLogger().warning("Could not remove empty legacy templates folder.");
+        }
     }
 
     public List<TemplateData> all() {
-        File[] files = folder.listFiles((dir, name) -> name.endsWith(".yml"));
+        ensureFolder();
+        File[] files = folder.listFiles((dir, name) -> name.toLowerCase(Locale.ROOT).endsWith(".yml"));
         if (files == null) return List.of();
         List<TemplateData> result = new ArrayList<>();
         for (File file : files) {
@@ -36,7 +76,7 @@ public final class TemplateRepository {
                 TemplateData data = read(file);
                 if (data != null) result.add(data);
             } catch (Exception ex) {
-                plugin.getLogger().warning("Could not load template " + file.getName() + ": " + ex.getMessage());
+                plugin.getLogger().warning("Could not load template save " + file.getName() + ": " + ex.getMessage());
             }
         }
         result.sort(Comparator.comparing(TemplateData::name, String.CASE_INSENSITIVE_ORDER));
@@ -44,8 +84,8 @@ public final class TemplateRepository {
     }
 
     public TemplateData get(String id) {
-        File file = file(id);
-        if (!file.isFile()) return null;
+        File file = fileForId(id);
+        if (file == null || !file.isFile()) return null;
         try { return read(file); }
         catch (Exception ex) {
             plugin.getLogger().warning("Could not read template " + id + ": " + ex.getMessage());
@@ -58,6 +98,16 @@ public final class TemplateRepository {
     }
 
     public void save(TemplateData data) throws IOException {
+        ensureFolder();
+        File oldFile = fileForId(data.id());
+        File target = new File(folder, safeFileName(data.name()) + ".yml");
+        if (target.exists() && (oldFile == null || !target.equals(oldFile))) {
+            TemplateData occupying = read(target);
+            if (occupying == null || !occupying.id().equals(data.id())) {
+                throw new IOException("A save file with that name already exists. Choose a different template name.");
+            }
+        }
+
         YamlConfiguration yaml = new YamlConfiguration();
         yaml.set("id", data.id());
         yaml.set("name", data.name());
@@ -77,12 +127,52 @@ public final class TemplateRepository {
             entries.add(row);
         }
         yaml.set("blocks", entries);
-        yaml.save(file(data.id()));
+
+        File temporary = new File(folder, target.getName() + ".tmp");
+        yaml.save(temporary);
+        try {
+            Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } catch (IOException atomicFailure) {
+            try {
+                Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            } catch (IOException moveFailure) {
+                moveFailure.addSuppressed(atomicFailure);
+                throw moveFailure;
+            }
+        }
+        if (oldFile != null && !oldFile.equals(target) && oldFile.exists() && !oldFile.delete()) {
+            plugin.getLogger().warning("Saved renamed template but could not remove its previous file: " + oldFile.getName());
+        }
     }
 
     public void delete(String id) {
-        File file = file(id);
-        if (file.exists() && !file.delete()) plugin.getLogger().warning("Could not delete template file " + file);
+        File file = fileForId(id);
+        if (file != null && file.exists() && !file.delete()) {
+            plugin.getLogger().warning("Could not delete template save " + file);
+        }
+    }
+
+    private File fileForId(String id) {
+        ensureFolder();
+        File[] files = folder.listFiles((dir, name) -> name.toLowerCase(Locale.ROOT).endsWith(".yml"));
+        if (files == null) return null;
+        for (File candidate : files) {
+            try {
+                if (id.equals(YamlConfiguration.loadConfiguration(candidate).getString("id"))) return candidate;
+            } catch (Exception ignored) {
+                // The full reader reports malformed files when listing them.
+            }
+        }
+        return null;
+    }
+
+    private String safeFileName(String name) throws IOException {
+        String safe = name.replaceAll("[<>:\"/\\\\|?*\\p{Cntrl}]", "_")
+                .trim().replaceAll("[. ]+$", "");
+        if (safe.isBlank() || safe.equals(".") || safe.equals("..")) {
+            throw new IOException("The template name cannot be used as a save filename.");
+        }
+        return safe;
     }
 
     public TemplateData capture(String name, Player player, Collection<Block> selected, Block anchor) {
@@ -151,12 +241,11 @@ public final class TemplateRepository {
                     String.valueOf(row.get("material")), String.valueOf(row.get("block-data")),
                     String.valueOf(row.containsKey("inventory") ? row.get("inventory") : ""), lines));
         }
-        return new TemplateData(yaml.getString("id", file.getName().replace(".yml", "")),
+        return new TemplateData(yaml.getString("id", file.getName().replaceFirst("(?i)\\.yml$", "")),
                 yaml.getString("name", "Unnamed"), UUID.fromString(yaml.getString("source-world")),
                 yaml.getInt("anchor.x"), yaml.getInt("anchor.y"), yaml.getInt("anchor.z"),
                 (float) yaml.getDouble("front-yaw"), yaml.getLong("created-at"), blocks);
     }
 
     private int number(Object value) { return value instanceof Number n ? n.intValue() : 0; }
-    private File file(String id) { return new File(folder, id + ".yml"); }
 }

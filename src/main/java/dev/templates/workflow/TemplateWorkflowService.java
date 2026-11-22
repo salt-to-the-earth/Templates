@@ -413,7 +413,8 @@ public final class TemplateWorkflowService implements Listener {
         if (session.target == null) {
             session.panelAnchor = clicked.getLocation().clone();
             session.target = clicked.getRelative(0, 1, 0).getLocation();
-            session.rotation = CoordinateTransform.rotationBetween(session.template.frontYaw(), player.getLocation().getYaw());\n            session.anchorRotation = true;
+            session.rotation = CoordinateTransform.rotationBetween(session.template.frontYaw(), player.getLocation().getYaw());
+            session.anchorRotation = true;
             int facing = Math.floorMod(Math.round(player.getLocation().getYaw() / 90.0f), 4);
             session.forwardX = switch (facing) { case 1 -> -1; case 3 -> 1; default -> 0; };
             session.forwardZ = switch (facing) { case 0 -> 1; case 2 -> -1; default -> 0; };

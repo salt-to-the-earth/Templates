@@ -74,7 +74,7 @@ The JAR is written to build/libs/Templates-0.2.0.jar.
 
 This implementation preserves block data and the supported tile information explicitly handled by Bukkit container and sign APIs. It does **not** yet guarantee complete NBT fidelity for every tile entity type (for example, every banner, skull, lectern, decorated pot, or modded block). Validate those block types on a test server before relying on them.
 
-The plugin has no universal protection-plugin adapter. It cannot independently know every WorldGuard or third-party protection rule; use a test area where the placing administrator is authorized. The rollback conflict check compares staged block data, so a same-material inventory-only edit may not be distinguishable from the plugin's staged state. Do not treat this early implementation as a substitute for backups.
+The plugin has no universal protection-plugin adapter. It cannot independently know every WorldGuard or third-party protection rule; use a test area where the placing administrator is authorized. The rollback conflict check compares block material/data plus the supported container inventory and sign text snapshots. Other tile-entity-specific fields are not yet covered. Do not treat this early implementation as a substitute for backups.
 
 Templates is separate from GateWorks. GateWorks supplied reusable interaction, selection, book, and particle-rendering patterns; the template storage and placement transaction system are Templates-specific.
 

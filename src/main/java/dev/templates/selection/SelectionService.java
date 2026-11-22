@@ -12,7 +12,14 @@ import java.util.UUID;
 
 /** Per-player working selection. Blocks are keyed by world and integer coordinates. */
 public final class SelectionService {
+    private final int maximumCuboidBlocks;
     private final Map<UUID, Map<String, Block>> selections = new LinkedHashMap<>();
+
+    public SelectionService() { this(16384); }
+
+    public SelectionService(int maximumCuboidBlocks) {
+        this.maximumCuboidBlocks = Math.max(1, maximumCuboidBlocks);
+    }
     private final Map<UUID, Location> lastPoints = new LinkedHashMap<>();
 
     public void add(Player player, Block block) {
@@ -32,7 +39,7 @@ public final class SelectionService {
         int minZ = Math.min(first.getBlockZ(), second.getBlockZ());
         int maxZ = Math.max(first.getBlockZ(), second.getBlockZ());
         long volume = (long) (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1);
-        if (volume > 16384) return false;
+        if (volume > maximumCuboidBlocks) return false;
         Map<String, Block> selected = selections.computeIfAbsent(
                 player.getUniqueId(), ignored -> new LinkedHashMap<>());
         for (int x = minX; x <= maxX; x++) {

@@ -9,7 +9,7 @@ website: https://github.com/salt-to-the-earth/Templates
 commands:
   templates:
     description: Manage structure templates and the selection wand.
-    usage: /templates <wand|book|list|help>
+    usage: /templates <wand|book|create|confirm|place|finalize|cancel|help>
     aliases: [template, tpl]
     permission: templates.admin
 

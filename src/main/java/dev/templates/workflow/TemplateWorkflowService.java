@@ -2,6 +2,7 @@ package dev.templates.workflow;
 
 import dev.templates.model.TemplateBlock;
 import dev.templates.model.TemplateData;
+import dev.templates.model.CoordinateTransform;
 import dev.templates.selection.SelectionService;
 import dev.templates.selection.WandService;
 import dev.templates.storage.TemplateRepository;
@@ -371,8 +372,7 @@ public final class TemplateWorkflowService implements Listener {
         if (session.target == null) {
             session.panelAnchor = clicked.getLocation().clone();
             session.target = clicked.getRelative(0, 1, 0).getLocation();
-            session.rotation = Math.floorMod(yawQuarter(player.getLocation().getYaw())
-                    - yawQuarter(session.template.frontYaw()), 4);
+            session.rotation = CoordinateTransform.rotationBetween(session.template.frontYaw(), player.getLocation().getYaw());
             player.sendMessage(Component.text("Preview positioned. Use the particle control panel on the ground: blue=X, red=Z, green=Y, yellow=rotate, white=center.", NamedTextColor.GREEN));
             return;
         }
@@ -484,17 +484,8 @@ public final class TemplateWorkflowService implements Listener {
         }
     }
 
-    private int yawQuarter(float yaw) {
-        return Math.floorMod(Math.round(yaw / 90.0f), 4);
-    }
-
     private int[] rotate(int x, int z, int rotation) {
-        return switch (rotation) {
-            case 1 -> new int[]{-z, x};
-            case 2 -> new int[]{-x, -z};
-            case 3 -> new int[]{z, -x};
-            default -> new int[]{x, z};
-        };
+        return CoordinateTransform.rotate(x, z, rotation);
     }
 
     private boolean canRestore(PlacementSession session, World world) {

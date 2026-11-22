@@ -332,6 +332,24 @@ public final class TemplateWorkflowService implements Listener {
         player.spawnParticle(Particle.END_ROD, clicked.getLocation().add(.5, .65, .5), 8, .18, .18, .18, .01);
     }
 
+
+    public void openTemplate(Player player, String id) {
+        TemplateData data = repository.get(id);
+        if (data == null) player.sendMessage(Component.text("Template not found.", NamedTextColor.RED));
+        else giveTemplateBook(player, data);
+    }
+
+    public void deleteTemplate(Player player, String id) {
+        TemplateData data = repository.get(id);
+        if (data == null) {
+            player.sendMessage(Component.text("Template not found.", NamedTextColor.RED));
+            return;
+        }
+        repository.delete(id);
+        player.sendMessage(Component.text("Template '" + data.name() + "' was deleted.", NamedTextColor.GREEN));
+        giveMasterBook(player);
+    }
+
     public void beginPlace(Player player, String id) {
         TemplateData data = repository.get(id);
         if (data == null) {
@@ -351,7 +369,8 @@ public final class TemplateWorkflowService implements Listener {
     private void handlePlacementClick(Player player, PlacementSession session, Block clicked) {
         if (session.target == null) {
             session.target = clicked.getRelative(0, 1, 0).getLocation();
-            session.rotation = 0;
+            session.rotation = Math.floorMod(yawQuarter(player.getLocation().getYaw())
+                    - yawQuarter(session.template.frontYaw()), 4);
             player.sendMessage(Component.text("Preview positioned. Use the particle control panel on the ground: blue=X, red=Z, green=Y, yellow=rotate, white=center.", NamedTextColor.GREEN));
             return;
         }
@@ -402,6 +421,8 @@ public final class TemplateWorkflowService implements Listener {
             }
             session.originals = originals;
             session.stagedData.clear();
+            session.staged = true;
+            persistTransactions();
             for (TemplateBlock b : session.template.blocks()) {
                 int[] rotated = rotate(b.x(), b.z(), session.rotation);
                 Block block = world.getBlockAt(session.target.getBlockX() + rotated[0],
@@ -438,7 +459,7 @@ public final class TemplateWorkflowService implements Listener {
 
     private void placeBlock(Block block, TemplateBlock data, int rotation) throws IOException {
         Material material = Material.matchMaterial(data.material());
-        if (material == null || !material.isBlock()) throw new IOException("Unknown block material " + data.material());
+        if (material == null || (!material.isBlock() && material != Material.AIR)) throw new IOException("Unknown block material " + data.material());
         block.setType(material, false);
         BlockData blockData = Bukkit.createBlockData(data.blockData());
         for (int i = 0; i < rotation; i++) blockData.rotate(StructureRotation.CLOCKWISE_90);
@@ -453,6 +474,10 @@ public final class TemplateWorkflowService implements Listener {
             for (int i = 0; i < Math.min(4, data.signLines().length); i++) sign.setLine(i, data.signLines()[i]);
             sign.update(true, false);
         }
+    }
+
+    private int yawQuarter(float yaw) {
+        return Math.floorMod(Math.round(yaw / 90.0f), 4);
     }
 
     private int[] rotate(int x, int z, int rotation) {
@@ -594,6 +619,7 @@ public final class TemplateWorkflowService implements Listener {
                 row.put("x", b.x()); row.put("y", b.y()); row.put("z", b.z());
                 row.put("material", b.material()); row.put("data", b.data());
                 row.put("inventory", b.inventory());
+                row.put("expected", s.stagedData.getOrDefault(b.x() + ":" + b.y() + ":" + b.z(), ""));
                 row.put("sign", b.signLines() == null ? List.of() : Arrays.asList(b.signLines()));
                 rows.add(row);
             }
@@ -625,8 +651,15 @@ public final class TemplateWorkflowService implements Listener {
                 String[] sign = rawSign.isEmpty() ? null : rawSign.stream().map(String::valueOf).toArray(String[]::new);
                 OriginalBlock original = new OriginalBlock(num(row.get("x")), num(row.get("y")), num(row.get("z")),
                         String.valueOf(row.get("material")), String.valueOf(row.get("data")),
-                        String.valueOf(row.getOrDefault("inventory", "")), sign);
-                restoreOriginal(world, original);
+                        String.valueOf(row.containsKey("inventory") ? row.get("inventory") : ""), sign);
+                String expected = String.valueOf(row.containsKey("expected") ? row.get("expected") : "");
+                Block current = world.getBlockAt(original.x(), original.y(), original.z());
+                if (expected.isBlank() || current.getBlockData().getAsString().equals(expected)) {
+                    restoreOriginal(world, original);
+                } else {
+                    plugin.getLogger().warning("Crash recovery skipped " + original.x() + "," + original.y() + "," + original.z()
+                            + " because the block changed after the template was staged.");
+                }
             }
             yaml.set(id, null);
         }

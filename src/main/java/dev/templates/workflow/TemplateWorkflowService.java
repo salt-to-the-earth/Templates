@@ -640,26 +640,32 @@ public final class TemplateWorkflowService implements Listener {
     private void renderOne(Player player, PlacementSession session) {
         if (session.target == null || session.target.getWorld() == null || session.panelAnchor == null) return;
         World world = session.target.getWorld();
-        int[] emitted = {0};
-        Set<PreviewEdge> drawn = new HashSet<>();
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
         for (TemplateBlock b : session.template.blocks()) {
-            if (emitted[0] >= MAX_PREVIEW_PARTICLES) break;
             int[] r = transformBlock(session, b);
             int x = session.target.getBlockX() + r[0];
             int y = session.target.getBlockY() + b.y();
             int z = session.target.getBlockZ() + r[1];
-            previewEdge(player, world, x,y,z,x+1,y,z,emitted,drawn);
-            previewEdge(player, world, x,y,z+1,x+1,y,z+1,emitted,drawn);
-            previewEdge(player, world, x,y+1,z,x+1,y+1,z,emitted,drawn);
-            previewEdge(player, world, x,y+1,z+1,x+1,y+1,z+1,emitted,drawn);
-            previewEdge(player, world, x,y,z,x,y+1,z,emitted,drawn);
-            previewEdge(player, world, x+1,y,z,x+1,y+1,z,emitted,drawn);
-            previewEdge(player, world, x,y,z+1,x,y+1,z+1,emitted,drawn);
-            previewEdge(player, world, x+1,y,z+1,x+1,y+1,z+1,emitted,drawn);
-            previewEdge(player, world, x,y,z,x,y,z+1,emitted,drawn);
-            previewEdge(player, world, x+1,y,z,x+1,y,z+1,emitted,drawn);
-            previewEdge(player, world, x,y+1,z,x,y+1,z+1,emitted,drawn);
-            previewEdge(player, world, x+1,y+1,z,x+1,y+1,z+1,emitted,drawn);
+            minX = Math.min(minX, x); maxX = Math.max(maxX, x + 1);
+            minY = Math.min(minY, y); maxY = Math.max(maxY, y + 1);
+            minZ = Math.min(minZ, z); maxZ = Math.max(maxZ, z + 1);
+        }
+        if (minX != Integer.MAX_VALUE) {
+            int[] emitted = {0};
+            Set<PreviewEdge> drawn = new HashSet<>();
+            previewEdge(player, world, minX,minY,minZ,maxX,minY,minZ,emitted,drawn);
+            previewEdge(player, world, minX,maxY,minZ,maxX,maxY,minZ,emitted,drawn);
+            previewEdge(player, world, minX,minY,maxZ,maxX,minY,maxZ,emitted,drawn);
+            previewEdge(player, world, minX,maxY,maxZ,maxX,maxY,maxZ,emitted,drawn);
+            previewEdge(player, world, minX,minY,minZ,minX,maxY,minZ,emitted,drawn);
+            previewEdge(player, world, maxX,minY,minZ,maxX,maxY,minZ,emitted,drawn);
+            previewEdge(player, world, minX,minY,maxZ,minX,maxY,maxZ,emitted,drawn);
+            previewEdge(player, world, maxX,minY,maxZ,maxX,maxY,maxZ,emitted,drawn);
+            previewEdge(player, world, minX,minY,minZ,minX,minY,maxZ,emitted,drawn);
+            previewEdge(player, world, maxX,minY,minZ,maxX,minY,maxZ,emitted,drawn);
+            previewEdge(player, world, minX,maxY,minZ,minX,maxY,maxZ,emitted,drawn);
+            previewEdge(player, world, maxX,maxY,minZ,maxX,maxY,maxZ,emitted,drawn);
         }
         panel(player, session);
     }
@@ -673,7 +679,7 @@ public final class TemplateWorkflowService implements Listener {
         if (drawn.contains(forward) || drawn.contains(reverse)) return;
         drawn.add(forward);
         double dx=x1-x0, dy=y1-y0, dz=z1-z0;
-        int steps=2;
+        int steps=Math.max(2, Math.min(32, (int)Math.ceil(Math.sqrt(dx*dx+dy*dy+dz*dz) * 2)));
         for (int i=0;i<=steps && emitted[0]<MAX_PREVIEW_PARTICLES;i++) {
             double t=(double)i/steps;
             player.spawnParticle(Particle.END_ROD,

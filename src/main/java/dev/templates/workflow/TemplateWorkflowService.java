@@ -406,6 +406,7 @@ public final class TemplateWorkflowService implements Listener {
         else if (px == 1 && pz == 1) session.target.add(0, 1, 0);
         else if (px == -1 && pz == 1) session.rotation = (session.rotation + 3) % 4;
         else if (px == 1 && pz == -1) session.rotation = (session.rotation + 1) % 4;
+        session.lastCenterAt = 0L;
         renderOne(player, session);
     }
 

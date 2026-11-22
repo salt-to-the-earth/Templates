@@ -88,6 +88,9 @@ public final class TemplateRepository {
     public TemplateData capture(String name, Player player, Collection<Block> selected, Block anchor) {
         List<TemplateBlock> blocks = new ArrayList<>();
         for (Block block : selected) {
+            if (!block.getWorld().equals(player.getWorld())) {
+                throw new IllegalArgumentException("All selected blocks must be in the same world as the player.");
+            }
             int x = block.getX() - anchor.getX();
             int y = block.getY() - anchor.getY();
             int z = block.getZ() - anchor.getZ();

@@ -1,6 +1,5 @@
 package dev.templates;
 
-import dev.templates.book.TemplateBookService;
 import dev.templates.command.TemplatesCommand;
 import dev.templates.selection.SelectionService;
 import dev.templates.selection.WandService;

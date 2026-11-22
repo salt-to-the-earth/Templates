@@ -323,9 +323,12 @@ public final class TemplateWorkflowService implements Listener {
                 player.sendMessage(Component.text("First cuboid corner selected. Shift-click the opposite corner.", NamedTextColor.YELLOW));
             } else {
                 int before = selections.size(player);
-                selections.addCuboid(player, first, clicked.getLocation());
-                player.sendMessage(Component.text("Cuboid selected. " + selections.size(player)
-                        + " blocks total (+" + (selections.size(player) - before) + ").", NamedTextColor.GREEN));
+                if (selections.addCuboid(player, first, clicked.getLocation())) {
+                    player.sendMessage(Component.text("Cuboid selected. " + selections.size(player)
+                            + " blocks total (+" + (selections.size(player) - before) + ").", NamedTextColor.GREEN));
+                } else {
+                    player.sendMessage(Component.text("That cuboid exceeds the 16,384-block limit or crosses worlds. The selection was not changed.", NamedTextColor.RED));
+                }
             }
         } else {
             selections.add(player, clicked);

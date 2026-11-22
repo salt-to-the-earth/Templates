@@ -142,11 +142,11 @@ public final class TemplateRepository {
         YamlConfiguration yaml = YamlConfiguration.loadConfiguration(file);
         List<TemplateBlock> blocks = new ArrayList<>();
         for (Map<?, ?> row : yaml.getMapList("blocks")) {
-            List<?> rawLines = (List<?>) row.getOrDefault("sign-lines", List.of());
+            List<?> rawLines = (List<?>) (row.containsKey("sign-lines") ? row.get("sign-lines") : List.of());
             String[] lines = rawLines.isEmpty() ? null : rawLines.stream().map(String::valueOf).toArray(String[]::new);
             blocks.add(new TemplateBlock(number(row.get("x")), number(row.get("y")), number(row.get("z")),
                     String.valueOf(row.get("material")), String.valueOf(row.get("block-data")),
-                    String.valueOf(row.getOrDefault("inventory", "")), lines));
+                    String.valueOf(row.containsKey("inventory") ? row.get("inventory") : ""), lines));
         }
         return new TemplateData(yaml.getString("id", file.getName().replace(".yml", "")),
                 yaml.getString("name", "Unnamed"), UUID.fromString(yaml.getString("source-world")),

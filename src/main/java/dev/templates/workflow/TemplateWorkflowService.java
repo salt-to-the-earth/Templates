@@ -671,6 +671,8 @@ public final class TemplateWorkflowService implements Listener {
         int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
         for (TemplateBlock b : session.template.blocks()) {
+            Material material = Material.matchMaterial(b.material());
+            if (material == null || material.isAir()) continue;
             int[] r = transformBlock(session, b);
             int x = session.target.getBlockX() + r[0];
             int y = session.target.getBlockY() + b.y();

@@ -96,13 +96,11 @@ public final class TemplateWorkflowService implements Listener {
         List<Component> pages = new ArrayList<>();
         int pagesCount = Math.max(1, (all.size() + 7) / 8);
         for (int page = 0; page < pagesCount; page++) {
-            Component text = Component.text("TEMPLATE LIBRARY\n\n", NamedTextColor.DARK_AQUA)
-                    .append(link("＋ Create from current selection", "/templates create"))
-                    .append(Component.text("\n\n", NamedTextColor.BLACK));
+            Component text = Component.text("TEMPLATE LIBRARY\n\n", NamedTextColor.DARK_AQUA);
             int start = page * 8;
             int end = Math.min(all.size(), start + 8);
             if (all.isEmpty()) text = text.append(Component.text(
-                    "No templates saved yet. Select blocks with the wand, then choose Create.", NamedTextColor.GRAY));
+                    "No templates saved yet. Use your Templates wand to select a structure and receive a Template Book.", NamedTextColor.GRAY));
             for (int i = start; i < end; i++) {
                 TemplateData data = all.get(i);
                 text = text.append(Component.text((i + 1) + ". ", NamedTextColor.GRAY))
@@ -172,13 +170,29 @@ public final class TemplateWorkflowService implements Listener {
     }
 
     private void giveAndOpen(Player player, ItemStack book) {
-        player.getInventory().addItem(book).values().forEach(item ->
+        String incomingType = book.getItemMeta().getPersistentDataContainer()
+                .get(bookType, PersistentDataType.STRING);
+        boolean workflowBook = incomingType != null && !incomingType.equals("master");
+        boolean placed = false;
+        if (workflowBook) {
+            for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
+                ItemStack existing = player.getInventory().getItem(slot);
+                if (existing == null || existing.getType() != Material.WRITTEN_BOOK) continue;
+                String existingType = existing.getItemMeta().getPersistentDataContainer()
+                        .get(bookType, PersistentDataType.STRING);
+                if (existingType != null && !existingType.equals("master")) {
+                    player.getInventory().setItem(slot, book);
+                    placed = true;
+                    break;
+                }
+            }
+        }
+        if (!placed) player.getInventory().addItem(book).values().forEach(item ->
                 player.getWorld().dropItemNaturally(player.getLocation(), item));
         Bukkit.getScheduler().runTask(plugin, () -> {
             if (!player.isOnline()) return;
             for (ItemStack item : player.getInventory().getContents()) {
                 if (item != null && item.getType() == Material.WRITTEN_BOOK
-                        && item.getItemMeta().getPersistentDataContainer().has(bookType, PersistentDataType.STRING)
                         && item.getItemMeta().equals(book.getItemMeta())) {
                     player.openBook(item);
                     break;
@@ -191,24 +205,27 @@ public final class TemplateWorkflowService implements Listener {
         ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
         book.editMeta(meta -> {
             BookMeta bm = (BookMeta) meta;
-            bm.title(Component.text("Current Selection"));
+            bm.title(Component.text("Template Book"));
             bm.author(Component.text("Templates"));
             bm.pages(Component.text("TEMPLATE SELECTION\\n\\nSelected blocks: " + selections.size(player) + "\\n\\n", NamedTextColor.DARK_AQUA)
-                    .append(link("Create template from selection", "/templates create"))
+                    .append(link("Name and save this template", "/templates create"))
                     .append(Component.text("\\n\\n", NamedTextColor.BLACK))
                     .append(link("Clear selection", "/templates clear"))
                     .append(Component.text("\\n\\nUse the wand to add blocks, Shift-click the opposite corner for a cuboid, or right-click to remove blocks.", NamedTextColor.GRAY)));
             bm.getPersistentDataContainer().set(bookType, PersistentDataType.STRING, "selection");
         });
+        boolean hadWorkflowBook = false;
         for (int slot = 0; slot < player.getInventory().getSize(); slot++) {
             ItemStack existing = player.getInventory().getItem(slot);
             if (existing == null || existing.getType() != Material.WRITTEN_BOOK) continue;
-            if (!"selection".equals(existing.getItemMeta().getPersistentDataContainer()
-                    .get(bookType, PersistentDataType.STRING))) continue;
+            String type = existing.getItemMeta().getPersistentDataContainer()
+                    .get(bookType, PersistentDataType.STRING);
+            if (type == null || type.equals("master")) continue;
             player.getInventory().setItem(slot, book);
-            return;
+            hadWorkflowBook = true;
+            break;
         }
-        giveAndOpen(player, book);
+        if (!hadWorkflowBook) giveAndOpen(player, book);
     }
 
     public void beginCreate(Player player) {
@@ -262,7 +279,7 @@ public final class TemplateWorkflowService implements Listener {
                 pendingNames.put(playerId, value);
                 naming.remove(playerId);
                 player.sendMessage(Component.text("Name reserved: " + value, NamedTextColor.GREEN));
-                player.sendMessage(Component.text("Open /templates book and click Create confirmation, or run /templates confirm.", NamedTextColor.GOLD));
+                player.sendMessage(Component.text("Open your Template Book and confirm the save; the same book will become the saved template's book.", NamedTextColor.GOLD));
                 giveConfirmBook(player, value);
             } else if (mode.startsWith("rename:")) {
                 String id = mode.substring(7);
@@ -288,7 +305,7 @@ public final class TemplateWorkflowService implements Listener {
         ItemStack book = new ItemStack(Material.WRITTEN_BOOK);
         book.editMeta(meta -> {
             BookMeta bm = (BookMeta) meta;
-            bm.title(Component.text("Save " + name));
+            bm.title(Component.text("Template Book: " + name));
             bm.author(Component.text("Templates"));
             bm.pages(Component.text("SAVE TEMPLATE\n\nName: " + name + "\nSelected blocks: "
                     + selections.size(player) + "\n\n", NamedTextColor.DARK_AQUA)
@@ -371,6 +388,7 @@ public final class TemplateWorkflowService implements Listener {
             selections.add(player, clicked);
             player.sendMessage(Component.text("Block selected. Selection: " + selections.size(player), NamedTextColor.GREEN));
         }
+        giveSelectionBook(player);
         player.spawnParticle(Particle.END_ROD, clicked.getLocation().add(.5, .65, .5), 8, .18, .18, .18, .01);
     }
 

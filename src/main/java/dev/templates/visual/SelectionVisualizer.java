@@ -41,7 +41,8 @@ public final class SelectionVisualizer {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
             if (!player.hasPermission("templates.admin")) continue;
             var blocks = selections.blocks(player).stream()
-                    .filter(block -> block.getWorld().equals(player.getWorld())).toList();
+                    .filter(block -> block.getWorld().equals(player.getWorld()))
+                    .filter(block -> !block.getType().isAir()).toList();
             if (blocks.isEmpty()) continue;
             int minX = blocks.stream().mapToInt(Block::getX).min().orElse(0);
             int maxX = blocks.stream().mapToInt(Block::getX).max().orElse(0) + 1;

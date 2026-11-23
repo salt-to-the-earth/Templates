@@ -540,9 +540,14 @@ public final class TemplateWorkflowService implements Listener {
 
     private void placeBlock(Block block, TemplateBlock data, int rotation) throws IOException {
         Material material = Material.matchMaterial(data.material());
-        if (material == null || (!material.isBlock() && material != Material.AIR)) throw new IOException("Unknown block material " + data.material());
+        if (material == null || (!material.isBlock() && !material.isAir())) throw new IOException("Unknown block material " + data.material());
+        // Every saved air variant is a clearing instruction during placement.
+        // Normalize cave air and void air to ordinary air so destination blocks are removed consistently.
+        if (material.isAir()) material = Material.AIR;
         block.setType(material, false);
-        BlockData blockData = Bukkit.createBlockData(data.blockData());
+        BlockData blockData = material.isAir()
+                ? Bukkit.createBlockData(Material.AIR)
+                : Bukkit.createBlockData(data.blockData());
         for (int i = 0; i < rotation; i++) blockData.rotate(StructureRotation.CLOCKWISE_90);
         block.setBlockData(blockData, false);
         var state = block.getState();
